@@ -1,0 +1,131 @@
+#
+# A simple theme that displays relevant, contextual information.
+#
+# Authors:
+#   Grégory Duchatelet <skygreg@gmail.com>
+#
+# Based on those themes:
+#  * loranger
+#  * sorin
+#
+#
+
+# Load dependencies.
+pmodload 'helper'
+
+function prompt_gregorg_pwd {
+  local pwd="${PWD/#$HOME/~}"
+
+  if [[ "$pwd" == (#m)[/~] ]]; then
+    _prompt_gregorg_pwd="$MATCH"
+    unset MATCH
+  else
+    _prompt_gregorg_pwd="${${${(@j:/:M)${(@s:/:)pwd}##.#?}:h}%/}/${pwd:t}"
+  fi
+}
+
+function prompt_gregorg_precmd {
+  setopt LOCAL_OPTIONS
+  unsetopt XTRACE KSH_ARRAYS
+
+  # Format PWD.
+  prompt_gregorg_pwd
+  prompt_gregorg_load
+
+  # Get Git repository information.
+  if (( $+functions[git-info] )); then
+    git-info
+  fi
+}
+
+function prompt_gregorg_load
+{
+    if [ -e /proc/loadavg ]
+    then
+        read load eol < /proc/loadavg
+        load=${load/./}   # Remove '.'
+        load=${load#0}    # Remove leading '0'
+        load=${load#0}    # Remove leading '0', again (ex: 0.09)
+        CPUNUM=$( nproc 2>/dev/null || grep -c '^[Pp]rocessor' /proc/cpuinfo ) ;
+        _prompt_gregorg_load=$(( $load / $CPUNUM ))
+        # threshold
+        if [ $_prompt_gregorg_load -lt 60 ]
+        then
+            _prompt_gregorg_load=
+        fi
+    fi
+}
+
+function prompt_gregorg_setup {
+  setopt LOCAL_OPTIONS
+  unsetopt XTRACE KSH_ARRAYS
+  prompt_opts=(cr percent subst)
+
+  # Load required functions.
+  autoload -Uz add-zsh-hook
+
+  # Add hook for calling git-info before each command.
+  add-zsh-hook precmd prompt_gregorg_precmd
+
+  # Prompt special characters
+  # S=(❯ ❮)
+  S=(⎠ ⎝)
+
+  # Prompt special characters colors
+  # C=(red yellow green)
+  C=(blue cyan magenta)
+  # C=(192 81 39)
+  # C=(98 100 15)
+  # C=(121 228 64)
+  # C=(214 26 224) # Ambre
+  # C=(194 26 232)
+  # C=(72 179 237)
+  # C=(1 215 101) # Dev
+  # C=(240 208 253)
+  # C=(193 36 66)
+  # C=(white 11 16)
+  # C=(197 215 32)
+  # C=(208 229 23)
+  # C=(11 144 95)
+  # C=(109 229 3)
+  # C=($((`cat /dev/urandom|od -N1 -An -i` % 255)) $((`cat /dev/urandom|od -N1 -An -i` % 255)) $((`cat /dev/urandom|od -N1 -An -i` % 255)))
+
+  zstyle ':prezto:module:editor:info:completing' format '%B%F{red}...%f%b'
+
+  zstyle ':prezto:module:editor:info:keymap:primary' format ' %B%F{white}%(!.%B%F{red}#.$)%f%b'
+  #zstyle ':prezto:module:editor:info:keymap:primary' format ' %B%F{'$C[1]'}'$S[1]'%F{'$C[2]'}'$S[1]'%F{'$C[3]'}'$S[1]'%f%b'
+  zstyle ':prezto:module:editor:info:keymap:primary:overwrite' format ' %F{red}♺%f'
+  zstyle ':prezto:module:editor:info:keymap:alternate' format ' %B%F{'$C[3]'}'$S[2]'%F{'$C[2]'}'$S[2]'%F{'$C[1]'}'$S[2]'%f%b'
+
+
+  zstyle ':prezto:module:git:info' verbose 'yes'
+  zstyle ':prezto:module:git:info:action' format ':%%B%F{yellow}%s%f%%b'
+  zstyle ':prezto:module:git:info:added' format '%%B%F{green}✚%f%%b'
+  zstyle ':prezto:module:git:info:ahead' format '%%B%F{yellow}⬆%f%%b'
+  zstyle ':prezto:module:git:info:behind' format '%%B%F{yellow}⬇%f%%b'
+  # zstyle ':prezto:module:git:info:branch' format '%F{green}%b%f'
+  zstyle ':prezto:module:git:info:branch' format ' %F{blue}%b%f'
+  # zstyle ':prezto:module:git:info:commit' format ':%F{green}%.7c%f'
+  zstyle ':prezto:module:git:info:commit' format ':%F{11}%.7c%f'
+  zstyle ':prezto:module:git:info:deleted' format '%%B%F{red}✖%f%%b'
+  zstyle ':prezto:module:git:info:modified' format '%%B%F{blue}✱%f%%b'
+  zstyle ':prezto:module:git:info:position' format ':%F{red}%p%f'
+  zstyle ':prezto:module:git:info:renamed' format '%%B%F{magenta}➜%f%%b'
+  zstyle ':prezto:module:git:info:stashed' format '%%B%F{cyan}✭%f%%b'
+  zstyle ':prezto:module:git:info:unmerged' format '%%B%F{yellow}═%f%%b'
+  zstyle ':prezto:module:git:info:untracked' format '%%B%F{white}◼%f%%b'
+  zstyle ':prezto:module:git:info:keys' format \
+    'prompt' '%F$(coalesce "%b" "%p" "%c")' \
+    'rprompt' '%A%B%S%a%d%m%r%U%u'
+
+  # Define prompts.
+  # PROMPT='%m %F{cyan}${_prompt_gregorg_pwd}%f${git_info:+${(e)git_info[prompt]}}%(!. %B%F{red}#%f%b.)${editor_info[keymap]} '
+  # PROMPT='%m %F{black}${_prompt_gregorg_pwd}%f${git_info:+${(e)git_info[prompt]}}%(!. %B%F{red}#%f%b.)${editor_info[keymap]} '
+  PROMPT='${_prompt_gregorg_load:+"%B%K{red}%F{yellow}⌂$_prompt_gregorg_load%%%f%b "}[%B%(!.%B%F{red}.)%n@%m%f%b]%B %F{green}${_prompt_gregorg_pwd}${git_info:+${(e)git_info[prompt]}}${git_info[rprompt]}%f${editor_info[keymap]} '
+  # RPROMPT='${editor_info[overwrite]}%(?:: %F{red}⏎%f)${VIM:+" %B%F{green}V%f%b"}${git_info[rprompt]}'
+  RPROMPT='${editor_info[overwrite]}[%D{%K:%M}]%(?:: %F{red}⏎%f)${VIM:+" %B%F{green}V%f%b"}'
+  SPROMPT='zsh: correct %F{red}%R%f to %F{green}%r%f [nyae]? '
+}
+
+prompt_gregorg_setup "$@"
+
